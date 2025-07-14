@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Roleta SVG All VibeSmoke</title>
+  <style>
+    body {
+      background: #121212;
+      color: white;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .wheel-container {
+      position: relative;
+      width: 360px;
+      height: 360px;
+    }
+    svg {
+      display: block;
+      margin: auto;
+      cursor: pointer;
+      user-select: none;
+      border-radius: 50%;
+      box-shadow: 0 0 20px #4b0082;
+      background: #23045a;
+    }
+    .pointer {
+      position: absolute;
+      top: 350px; /* posição abaixo da roleta */
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 20px solid transparent;
+      border-right: 20px solid transparent;
+      border-bottom: 30px solid #fff; /* seta apontando para cima */
+      z-index: 10;
+    }
+    .result {
+      margin-top: 20px;
+      font-size: 18px;
+      min-height: 24px;
+      text-align: center;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #4b0082;
+      border: none;
+      color: white;
+      border-radius: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="wheel-container">
+    <div class="pointer"></div>
+    <svg id="wheel" width="360" height="360" viewBox="0 0 360 360" xmlns="http://www.w3.org/2000/svg" aria-label="Roleta de prêmios" role="img">
+      <defs id="defs"></defs>
+    </svg>
+  </div>
+  <button id="spinBtn">GIRAR</button>
+  <div class="result" id="result"></div>
+
+  <script>
+    const prizes = [
+      '10% OFF',        // 20%
+      'Pod Grátis',    // 1%
+      'Frete Grátis',   // 24%
+      '20% OFF',        // 15%
+      'Brinde',         // 8%
+      'Perdeu a vez'    // 32%
+    ];
+
+    const weights = [20, 5, 20, 15, 10, 30]; // Pesos que somam 100
+
+    const colors = ['#4b0082', '#6a0dad'];
+    const wheel = document.getElementById('wheel');
+    const result = document.getElementById('result');
+    const spinBtn = document.getElementById('spinBtn');
+    const center = 180;
+    const radius = 165;
+    const textRadius = 130; // Texto mais próximo do centro da fatia
+    const segmentCount = prizes.length;
+    const segmentAngle = 360 / segmentCount;
+    let spinning = false;
+
+    function polarToCartesian(cx, cy, r, angleDegrees) {
+      const angleRadians = (angleDegrees - 90) * Math.PI / 180.0;
+      return {
+        x: cx + (r * Math.cos(angleRadians)),
+        y: cy + (r * Math.sin(angleRadians))
+      };
+    }
+
+    function describeArc(cx, cy, r, startAngle, endAngle) {
+      const start = polarToCartesian(cx, cy, r, endAngle);
+      const end = polarToCartesian(cx, cy, r, startAngle);
+      const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+      return [
+        `M ${start.x} ${start.y}`,
+        `A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`
+      ].join(' ');
+    }
+
+    function drawWheel() {
+      wheel.innerHTML = '<defs id="defs"></defs>';
+      const defs = document.getElementById('defs'); // Recaptura correta do novo defs
+
+      for (let i = 0; i < segmentCount; i++) {
+        const startAngle = i * segmentAngle;
+        const endAngle = startAngle + segmentAngle;
+
+        // FATIA
+        const slice = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        slice.setAttribute('d', describeArc(center, center, radius, startAngle, endAngle) + ' L 180 180 Z');
+        slice.setAttribute('fill', colors[i % colors.length]);
+        wheel.appendChild(slice);
+
+        // CAMINHO PARA TEXTO CURVO
+        const arcId = `textArc${i}`;
+        const arcPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        arcPath.setAttribute('id', arcId);
+        arcPath.setAttribute('d', describeArc(center, center, textRadius, startAngle + 2, endAngle - 2));
+        defs.appendChild(arcPath);
+
+        // TEXTO CURVO
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute('fill', 'white');
+        text.setAttribute('font-size', '13');
+        text.setAttribute('font-weight', 'bold');
+
+        const textPath = document.createElementNS("http://www.w3.org/2000/svg", "textPath");
+        textPath.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", `#${arcId}`);
+        textPath.setAttribute("startOffset", "50%");
+        textPath.setAttribute("text-anchor", "middle");
+        textPath.textContent = prizes[i];
+
+        text.appendChild(textPath);
+        wheel.appendChild(text);
+      }
+    }
+
+    // Função para escolher índice baseado nos pesos (probabilidades)
+    function weightedRandom(weights) {
+      const sum = weights.reduce((a, b) => a + b, 0);
+      let rand = Math.random() * sum;
+      for (let i = 0; i < weights.length; i++) {
+        if (rand < weights[i]) return i;
+        rand -= weights[i];
+      }
+      return 0; // fallback (não deve ocorrer)
+    }
+
+    function spin() {
+      if (spinning) return;
+      spinning = true;
+      result.textContent = '';
+
+      const spins = 5;
+      const duration = 5000;
+
+      const randomSegment = weightedRandom(weights);
+
+      // Ajuste para alinhar a fatia sorteada na posição inferior (180°)
+      const stopAngle = 180 - (randomSegment * segmentAngle) - (segmentAngle / 2);
+      const finalRotation = (spins * 360) + stopAngle;
+
+      // Gira a roleta animada
+      wheel.style.transition = `transform ${duration / 1000}s cubic-bezier(0.33, 1, 0.68, 1)`;
+      wheel.style.transform = `rotate(${finalRotation}deg)`;
+
+      setTimeout(() => {
+        spinning = false;
+        result.textContent = `🎉 Resultado: ${prizes[randomSegment]}!`;
+
+        // Remove transição para resetar rotação instantaneamente
+        wheel.style.transition = 'none';
+
+        // Normaliza rotação para ângulo final dentro de 0-360 para manter posição visual
+        const normalizedRotation = finalRotation % 360;
+        wheel.style.transform = `rotate(${normalizedRotation}deg)`;
+      }, duration + 20);
+    }
+
+    drawWheel();
+    spinBtn.addEventListener('click', spin);
+  </script>
+</body>
+</html>
