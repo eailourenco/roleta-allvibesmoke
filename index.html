@@ -32,14 +32,14 @@
     }
     .pointer {
       position: absolute;
-      top: 350px; /* posição abaixo da roleta */
+      top: 350px;
       left: 50%;
       transform: translateX(-50%);
       width: 0;
       height: 0;
       border-left: 20px solid transparent;
       border-right: 20px solid transparent;
-      border-bottom: 30px solid #fff; /* seta apontando para cima */
+      border-bottom: 30px solid #fff;
       z-index: 10;
     }
     .result {
@@ -73,15 +73,15 @@
 
   <script>
     const prizes = [
-      '10% OFF',        // 20%
-      'Pod Grátis',    // 1%
-      'Frete Grátis',   // 24%
-      '20% OFF',        // 15%
-      'Brinde',         // 8%
-      'Perdeu a vez'    // 32%
+      '10% OFF',
+      'Pod Grátis',
+      'Frete Grátis',
+      '20% OFF',
+      'Brinde',
+      'Perdeu a vez'
     ];
 
-    const weights = [20, 5, 20, 15, 10, 30]; // Pesos que somam 100
+    const weights = [20, 5, 20, 15, 10, 30];
 
     const colors = ['#4b0082', '#6a0dad'];
     const wheel = document.getElementById('wheel');
@@ -89,10 +89,14 @@
     const spinBtn = document.getElementById('spinBtn');
     const center = 180;
     const radius = 165;
-    const textRadius = 130; // Texto mais próximo do centro da fatia
+    const textRadius = 130;
     const segmentCount = prizes.length;
     const segmentAngle = 360 / segmentCount;
     let spinning = false;
+
+    // 🎵 Sons
+    const spinSound = new Audio('spin.mp3');
+    const winSound = new Audio('win.mp3');
 
     function polarToCartesian(cx, cy, r, angleDegrees) {
       const angleRadians = (angleDegrees - 90) * Math.PI / 180.0;
@@ -114,26 +118,23 @@
 
     function drawWheel() {
       wheel.innerHTML = '<defs id="defs"></defs>';
-      const defs = document.getElementById('defs'); // Recaptura correta do novo defs
+      const defs = document.getElementById('defs');
 
       for (let i = 0; i < segmentCount; i++) {
         const startAngle = i * segmentAngle;
         const endAngle = startAngle + segmentAngle;
 
-        // FATIA
         const slice = document.createElementNS("http://www.w3.org/2000/svg", "path");
         slice.setAttribute('d', describeArc(center, center, radius, startAngle, endAngle) + ' L 180 180 Z');
         slice.setAttribute('fill', colors[i % colors.length]);
         wheel.appendChild(slice);
 
-        // CAMINHO PARA TEXTO CURVO
         const arcId = `textArc${i}`;
         const arcPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
         arcPath.setAttribute('id', arcId);
         arcPath.setAttribute('d', describeArc(center, center, textRadius, startAngle + 2, endAngle - 2));
         defs.appendChild(arcPath);
 
-        // TEXTO CURVO
         const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
         text.setAttribute('fill', 'white');
         text.setAttribute('font-size', '13');
@@ -150,7 +151,6 @@
       }
     }
 
-    // Função para escolher índice baseado nos pesos (probabilidades)
     function weightedRandom(weights) {
       const sum = weights.reduce((a, b) => a + b, 0);
       let rand = Math.random() * sum;
@@ -158,7 +158,7 @@
         if (rand < weights[i]) return i;
         rand -= weights[i];
       }
-      return 0; // fallback (não deve ocorrer)
+      return 0;
     }
 
     function spin() {
@@ -166,27 +166,30 @@
       spinning = true;
       result.textContent = '';
 
+      // 🎵 Inicia som de giro
+      spinSound.currentTime = 0;
+      spinSound.play();
+
       const spins = 5;
       const duration = 5000;
 
       const randomSegment = weightedRandom(weights);
-
-      // Ajuste para alinhar a fatia sorteada na posição inferior (180°)
       const stopAngle = 180 - (randomSegment * segmentAngle) - (segmentAngle / 2);
       const finalRotation = (spins * 360) + stopAngle;
 
-      // Gira a roleta animada
       wheel.style.transition = `transform ${duration / 1000}s cubic-bezier(0.33, 1, 0.68, 1)`;
       wheel.style.transform = `rotate(${finalRotation}deg)`;
 
       setTimeout(() => {
         spinning = false;
+
+        // 🎵 Som de resultado
+        winSound.currentTime = 0;
+        winSound.play();
+
         result.textContent = `🎉 Resultado: ${prizes[randomSegment]}!`;
 
-        // Remove transição para resetar rotação instantaneamente
         wheel.style.transition = 'none';
-
-        // Normaliza rotação para ângulo final dentro de 0-360 para manter posição visual
         const normalizedRotation = finalRotation % 360;
         wheel.style.transform = `rotate(${normalizedRotation}deg)`;
       }, duration + 20);
